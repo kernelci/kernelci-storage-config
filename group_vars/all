@@ -1,0 +1,7 @@
+install_base: /srv
+app_user: www-data
+app_group: www-data
+git_head: master
+service_name: kernelci-storage
+uwsgi_port: 5050
+web_user: www-data

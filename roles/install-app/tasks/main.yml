@@ -1,0 +1,61 @@
+---
+- name: Clone/Update git repo
+  git:  repo=https://github.com/kernelci/kernelci-storage.git
+        dest={{ install_base }}/{{ hostname }}
+        version={{ git_head }}
+        update=yes
+  tags:
+    - install
+    - app
+
+- name: Fix repo permissions
+  file: path={{ install_base }}/{{ hostname }}
+        state=directory
+        recurse=yes
+        owner={{ web_user }}
+        group={{ web_user }}
+  tags:
+    - install
+    - app
+
+- name: Install pip requirements
+  pip:  requirements={{ install_base }}/{{ hostname }}/requirements.txt
+        executable=pip3
+        virtualenv={{ install_base }}/.venv/{{ hostname }}
+        virtualenv_python=python3
+        extra_args="--upgrade"
+  tags:
+    - install
+    - app
+
+- name: Fix virtualenv permissions
+  file: path={{ install_base }}/.venv/{{ hostname }}
+        state=directory
+        recurse=yes
+        owner={{ web_user }}
+        group={{ web_user }}
+  tags:
+    - install
+    - app
+
+- name: Does /etc/linaro exists?
+  file: path=/etc/linaro/{{ service_name }}
+        state=directory
+        owner=root
+        group=root
+  tags:
+    - install
+    - app
+
+- name: Install configuration file
+  template: src=kernelci-storage.cfg
+            dest=/etc/linaro/{{ service_name }}/{{ service_name }}.cfg
+            owner=root
+            group=root
+            mode=0644
+  tags:
+    - install
+    - app
+    - secrets
+
+- name: Install systemd service file

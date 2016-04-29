@@ -1,0 +1,4 @@
+hostname: staging-storage.kernelci.org
+uwsgi_threads: 2
+uwsgi_processes: 2
+role: staging

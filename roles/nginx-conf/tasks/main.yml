@@ -1,0 +1,20 @@
+---
+- name: Does /etc/linaro exists?
+  file: path=/etc/linaro/{{ service_name }}
+        state=directory
+        owner=root
+        group=root
+  tags:
+    - install
+    - app
+
+- name: Install configuration file
+  template: src=kernelci-storage.ini
+            dest=/etc/linaro/{{ service_name }}/{{ service_name }}.ini
+            owner=root
+            group=root
+            mode=0644
+  tags:
+    - install
+    - app
+    - secrets

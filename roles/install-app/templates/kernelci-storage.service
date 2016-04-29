@@ -1,0 +1,29 @@
+[Unit]
+Description=KernelCi Storage System
+After=network.service
+Before=nginx.service
+
+[Service]
+Type=notify
+NotifyAccess=all
+RuntimeDirectory={{ service_name }}
+StandardError=syslog
+User={{ app_user }}
+Group={{ app_user }}
+ProtectHome=true
+ProtectSystem=full
+NoNewPrivileges=true
+PrivateTmp=true
+SyslogIdentifier={{ service_name }}
+LimitNOFILE=65536
+RestartSec=5
+Restart=always
+KillSignal=SIGTERM
+WorkingDirectory={{ install_base }}/{{ hostname }}/{{ app_name }}
+ExecStart={{ install_base }}/.venv/{{ hostname }}/bin/uwsgi --ini /etc/linaro/{{ service_name }}/{{ service_name }}.ini
+ExecStop=/bin/kill -TERM $MAINPID
+ExecReload=/bin/kill -HUP $MAINPID
+SuccessExitStatus=30
+
+[Install]
+WantedBy=multi-user.target
