@@ -1,4 +1,4 @@
 hostname: storage.kernelci.org
-uwsgi_threads: 2
-uwsgi_processes: 5
+uwsgi_threads: 3
+uwsgi_processes: 6
 role: production
