@@ -1,20 +1,175 @@
 ---
-- name: Does /etc/linaro exists?
-  file: path=/etc/linaro/{{ service_name }}
-        state=directory
+- name: Install default nginx configuration
+  template: src=nginx-default.conf
+            dest=/etc/nginx/nginx.conf
+            owner=root
+            group=root
+            mode=0644
+  notify:
+    - reload-nginx
+  tags:
+    - web-server
+
+- name: Disable default website
+  file: state=absent
+        dest=/etc/nginx/sites-enabled/default
+  notify:
+    - reload-nginx
+  tags:
+    - web-server
+
+- name: Create www root directory
+  file: state=directory
+        dest={{ web_root }}/{{ hostname }}
+        owner={{ web_user }}
+        group={{ web_user }}
+        mode=0755
+  tags:
+    - web-server
+
+- name: Create link to static content
+  file: state=link
+        src={{ install_base }}/{{ hostname }}/app/storage/static
+        dest={{ web_root }}/{{ hostname }}/static
+        owner={{ web_user }}
+        group={{ web_user }}
+  tags:
+    -web-server
+
+- name: Install upstreams configuration
+  template: src=kernelci-storage-upstreams.conf
+            dest=/etc/nginx/conf.d/kernelci-storage-upstreams.conf
+            owner=root
+            group=root
+            mode=0644
+  notify:
+    - reload-nginx
+  tags:
+    - install
+    - web-server
+
+- name: Install web server config
+  template: src=kernelci-storage.conf
+            dest=/etc/nginx/sites-available/{{ hostname }}
+            owner=root
+            group=root
+            mode=0644
+  notify:
+    - reload-nginx
+  tags:
+    - install
+    - web-server
+
+- name: Enable backend website
+  file: state=link
+        src=/etc/nginx/sites-available/{{ hostname }}
+        dest=/etc/nginx/sites-enabled/{{ hostname }}
         owner=root
         group=root
   tags:
-    - install
-    - app
+    - web-server
 
-- name: Install configuration file
-  template: src=kernelci-storage.ini
-            dest=/etc/linaro/{{ service_name }}/{{ service_name }}.ini
+- name: Install local nginx configuration
+  copy: src=nginx-local.conf
+        dest=/etc/nginx/conf.d/nginx-local.conf
+        owner=root
+        group=root
+        mode=0644
+  notify:
+    - reload-nginx
+  tags:
+    - web-server
+
+- name: Does the nginx custom directory exists?
+  file: path=/etc/nginx/custom/
+        state=directory
+        owner=root
+        group=root
+  notify:
+    - reload-nginx
+  tags:
+    - web-server
+
+- name: Copy backend proxy configuration
+  copy: src=kernelci-storage-proxy.conf
+        dest=/etc/nginx/custom/kernelci-storage-proxy.conf
+        owner=root
+        group=root
+        mode=0644
+  notify:
+    - reload-nginx
+  tags:
+    - web-server
+
+- name: Clone letsencrypt repo
+  when: role == "production"
+  git:  repo=https://github.com/letsencrypt/letsencrypt.git
+        dest={{ install_base }}/letsencrypt
+        update=yes
+        force=yes
+  tags:
+    - https
+    - web-server
+
+- name: Make sure letsencrypt config directory exists
+  when: role == "production"
+  file: path=/etc/letsencrypt
+        state=directory
+        owner=root
+        group=root
+        mode=0755
+  tags:
+    - https
+    - web-server
+
+- name: Copy letsencrypt config file
+  when: role == "production"
+  template: src=letsencrypt.ini
+            dest=/etc/letsencrypt/cli.ini
             owner=root
             group=root
             mode=0644
   tags:
-    - install
-    - app
+    - https
     - secrets
+    - web-server
+
+- name: Set up cronjob for HTTPS certificates renewal
+  when: role == "production"
+  cron: name="Renew TLS certificates"
+        user=root
+        state=present
+        job="{{ install_base }}/letsencrypt/letsencrypt-auto renew -c /etc/letsencrypt/cli.ini 1>/dev/null && systemctl reload nginx.service"
+        cron_file=letsencrypt-tls-certs
+        day=7,14,21,28
+        hour=3
+        minute=10
+  tags:
+    - cron
+    - https
+    - web-server
+
+# This is a very loooong task.
+# Better doing it directly on the server first.
+# For the why: OpenSSL default Diffie-Helman Ephemeral key is only 1024 bits,
+# but we use a 4096 bits certificate. That means that who uses DHE algo will
+# get weaker keys than non-DH algo.
+- name: Create Diffie-Helman key-exchange cert
+  when: role == "production"
+  shell: openssl dhparam -out /etc/ssl/certs/dhparam.pem 4096
+         creates=/etc/ssl/certs/dhparam.pem
+  tags:
+      - https
+      - web-server
+  notify:
+      - reload-nginx
+
+- name: Check perms on key-exchange cert
+  when: role == "production"
+  file: path=/etc/ssl/certs/dhparam.pem
+        owner=root
+        group=root
+        mode=0644
+  tags:
+      - https
+      - web-server
