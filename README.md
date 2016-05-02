@@ -20,3 +20,12 @@ To skip the secrets taks, just pass:
 
     --skip-tags=secrets
 
+Secret Keys
+-----------
+
+The secret keys that have to be defined are:
+
+* info_email
+* aws_access_key_id
+* aws_secret_access_key
+* aws_s3_bucket
