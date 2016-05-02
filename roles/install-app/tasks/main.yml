@@ -39,7 +39,7 @@
     - install
 
 - name: Enable KSM (Kernel Samepage Merging)
-  file: src=99-ksm.conf
+  copy: src=99-ksm.conf
         dest=/etc/sysfs.d/99-ksm.conf
         owner=root
         group=root
@@ -88,7 +88,7 @@
             owner=root
             group=root
             mode=0644
-  notiy:
+  notify:
     - reload-systemd
     - reload-kernelci-storage
   tags:
