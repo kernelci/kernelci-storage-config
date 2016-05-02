@@ -5,3 +5,4 @@ git_head: master
 service_name: kernelci-storage
 uwsgi_port: 5050
 web_user: www-data
+web_root: /usr/share/nginx/html
