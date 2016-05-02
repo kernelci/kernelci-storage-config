@@ -8,6 +8,7 @@
   notify:
     - reload-nginx
   tags:
+    - install
     - web-server
 
 - name: Disable default website
@@ -16,6 +17,7 @@
   notify:
     - reload-nginx
   tags:
+    - install
     - web-server
 
 - name: Create www root directory
@@ -25,16 +27,24 @@
         group={{ web_user }}
         mode=0755
   tags:
+    - install
     - web-server
 
-- name: Create link to static content
-  file: state=link
-        src={{ install_base }}/{{ hostname }}/app/storage/static
-        dest={{ web_root }}/{{ hostname }}/static
-        owner={{ web_user }}
-        group={{ web_user }}
+- name: Copy static assets
+  command: rsync -a {{ install_base }}/{{ hostname }}/app/storage/static/ {{ web_root }}/{{ hostname }}/static
   tags:
-    -web-server
+    - install
+    - web-server
+
+- name: Fix assets permissions
+  file: path={{ web_root }}/{{ hostname }}/static
+        state=directory
+        recurse=yes
+        owner={{ app_user }}
+        group={{ app_user }}
+  tags:
+    - install
+    - web-server
 
 - name: Install upstreams configuration
   template: src=kernelci-storage-upstreams.conf
@@ -60,13 +70,14 @@
     - install
     - web-server
 
-- name: Enable backend website
+- name: Enable service website
   file: state=link
         src=/etc/nginx/sites-available/{{ hostname }}
         dest=/etc/nginx/sites-enabled/{{ hostname }}
         owner=root
         group=root
   tags:
+    - install
     - web-server
 
 - name: Install local nginx configuration
@@ -78,6 +89,7 @@
   notify:
     - reload-nginx
   tags:
+    - install
     - web-server
 
 - name: Does the nginx custom directory exists?
@@ -88,6 +100,7 @@
   notify:
     - reload-nginx
   tags:
+    - install
     - web-server
 
 - name: Copy backend proxy configuration
@@ -99,6 +112,7 @@
   notify:
     - reload-nginx
   tags:
+    - install
     - web-server
 
 - name: Clone letsencrypt repo
