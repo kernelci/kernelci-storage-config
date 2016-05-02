@@ -5,18 +5,18 @@
         version={{ git_head }}
         update=yes
   tags:
-    - install
     - app
+    - install
 
 - name: Fix repo permissions
   file: path={{ install_base }}/{{ hostname }}
         state=directory
         recurse=yes
-        owner={{ web_user }}
-        group={{ web_user }}
+        owner=root
+        group=root
   tags:
-    - install
     - app
+    - install
 
 - name: Install pip requirements
   pip:  requirements={{ install_base }}/{{ hostname }}/requirements.txt
@@ -25,27 +25,51 @@
         virtualenv_python=python3
         extra_args="--upgrade"
   tags:
-    - install
     - app
+    - install
 
 - name: Fix virtualenv permissions
   file: path={{ install_base }}/.venv/{{ hostname }}
         state=directory
         recurse=yes
-        owner={{ web_user }}
-        group={{ web_user }}
+        owner=root
+        group=root
   tags:
-    - install
     - app
+    - install
+
+- name: Enable KSM (Kernel Samepage Merging)
+  file: src=99-ksm.conf
+        dest=/etc/sysfs.d/99-ksm.conf
+        owner=root
+        group=root
+        mode=0644
+  tags:
+    - app
+    - install
 
 - name: Does /etc/linaro exists?
   file: path=/etc/linaro/{{ service_name }}
         state=directory
         owner=root
         group=root
+        mode=0775
   tags:
-    - install
     - app
+    - install
+
+- name: Install app configuration file
+  template: src=kernelci-storage.ini
+            dest=/etc/linaro/{{ service_name }}/{{ service_name }}.ini
+            owner=root
+            group=root
+            mode=0644
+  notify:
+    - reload-kernelci-storage
+  tags:
+    - app
+    - install
+    - secrets
 
 - name: Install configuration file
   template: src=kernelci-storage.cfg
@@ -54,8 +78,30 @@
             group=root
             mode=0644
   tags:
-    - install
     - app
+    - install
     - secrets
 
 - name: Install systemd service file
+  template: src=kernelci-storage.service
+            dest=/etc/systemd/system/{{ service_name }}.service
+            owner=root
+            group=root
+            mode=0644
+  notiy:
+    - reload-systemd
+    - reload-kernelci-storage
+  tags:
+    - app
+    - install
+    - systemd
+
+- name: Enable systemd service
+  command:  /bin/systemctl enable {{ service_name }}.service
+            creates=/etc/systemd/system/multi-user.target.wants/{{ service_name }}.service
+  notify:
+    - start-kernelci-storage
+  tags:
+    - app
+    - install
+    - systemd
